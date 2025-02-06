@@ -1,18 +1,9 @@
 import 'package:flutter/material.dart';
-
+import 'package:sudoku_api/sudoku_api.dart';
 import 'inner_grid.dart';
 
 class Game extends StatefulWidget {
   const Game({Key? key, required this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
 
   final String title;
 
@@ -21,17 +12,31 @@ class Game extends StatefulWidget {
 }
 
 class _GameState extends State<Game> {
-  int _counter = 0;
+  late Future<List<List<int>>> _sudokuGrid;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _sudokuGrid = generateSudoku();
+  }
+
+  /// Generates a Sudoku grid using Puzzle
+  Future<List<List<int>>> generateSudoku() async {
+    PuzzleOptions puzzleOptions = PuzzleOptions(patternName: "winter");
+    Puzzle puzzle = Puzzle(puzzleOptions);
+
+    await puzzle.generate(); // Wait for grid generation
+
+    List<List<int>> grid = List.generate(9, (i) => List.generate(9, (j) => 0));
+
+    // Populate the grid correctly
+    for (int i = 0; i < 9; i++) {
+      for (int j = 0; j < 9; j++) {
+        grid[i][j] = puzzle.board()?.matrix()?[i][j].getValue() ?? 0;
+      }
+    }
+
+    return grid;
   }
 
   @override
@@ -43,20 +48,36 @@ class _GameState extends State<Game> {
 
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            SizedBox(
+        child: FutureBuilder<List<List<int>>>(
+          future: _sudokuGrid,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            } else if (snapshot.hasError) {
+              return const Text("Error generating Sudoku grid");
+            }
+
+            final grid = snapshot.data!;
+
+            return SizedBox(
               height: boxSize * 3,
               width: boxSize * 3,
               child: GridView.count(
                 crossAxisCount: 3,
-                children: List.generate(9, (index) {
+                children: List.generate(9, (blockIndex) {
+                  List<int> values = [];
+                  int startRow = (blockIndex ~/ 3) * 3;
+                  int startCol = (blockIndex % 3) * 3;
+
+                  for (int i = 0; i < 3; i++) {
+                    for (int j = 0; j < 3; j++) {
+                      values.add(grid[startRow + i][startCol + j]);
+                    }
+                  }
+
                   return Container(
                     width: boxSize,
                     height: boxSize,
@@ -66,26 +87,14 @@ class _GameState extends State<Game> {
                         width: 1,
                       ),
                     ),
-                    child: InnerGrid(boxSize: boxSize),
+                    child: InnerGrid(boxSize: boxSize, values: values),
                   );
                 }),
               ),
-            ),
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+            );
+          },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
