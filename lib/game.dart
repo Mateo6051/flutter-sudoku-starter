@@ -13,6 +13,8 @@ class Game extends StatefulWidget {
 
 class _GameState extends State<Game> {
   late Future<List<List<int>>> _sudokuGrid;
+  int? selectedBlock;
+  int? selectedCell;
 
   @override
   void initState() {
@@ -20,16 +22,15 @@ class _GameState extends State<Game> {
     _sudokuGrid = generateSudoku();
   }
 
-  /// Generates a Sudoku grid using Puzzle
+  /// Génère une grille Sudoku correctement formée
   Future<List<List<int>>> generateSudoku() async {
     PuzzleOptions puzzleOptions = PuzzleOptions(patternName: "winter");
     Puzzle puzzle = Puzzle(puzzleOptions);
 
-    await puzzle.generate(); // Wait for grid generation
+    await puzzle.generate();
 
     List<List<int>> grid = List.generate(9, (i) => List.generate(9, (j) => 0));
 
-    // Populate the grid correctly
     for (int i = 0; i < 9; i++) {
       for (int j = 0; j < 9; j++) {
         grid[i][j] = puzzle.board()?.matrix()?[i][j].getValue() ?? 0;
@@ -37,6 +38,14 @@ class _GameState extends State<Game> {
     }
 
     return grid;
+  }
+
+  /// Met à jour l'état lorsqu'une cellule est sélectionnée
+  void onCellTap(int blockIndex, int cellIndex) {
+    setState(() {
+      selectedBlock = blockIndex;
+      selectedCell = cellIndex;
+    });
   }
 
   @override
@@ -57,7 +66,7 @@ class _GameState extends State<Game> {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const CircularProgressIndicator();
             } else if (snapshot.hasError) {
-              return const Text("Error generating Sudoku grid");
+              return const Text("Erreur lors de la génération du Sudoku");
             }
 
             final grid = snapshot.data!;
@@ -82,12 +91,16 @@ class _GameState extends State<Game> {
                     width: boxSize,
                     height: boxSize,
                     decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.blueAccent,
-                        width: 1,
-                      ),
+                      border: Border.all(color: Colors.blueAccent, width: 1),
                     ),
-                    child: InnerGrid(boxSize: boxSize, values: values),
+                    child: InnerGrid(
+                      boxSize: boxSize,
+                      values: values,
+                      blockIndex: blockIndex,
+                      selectedBlock: selectedBlock,
+                      selectedCell: selectedCell,
+                      onCellTap: onCellTap, // Passe la fonction de sélection
+                    ),
                   );
                 }),
               ),
