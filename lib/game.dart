@@ -14,6 +14,8 @@ class Game extends StatefulWidget {
 class _GameState extends State<Game> {
   late Puzzle puzzle;
   late Future<List<List<int>>> _sudokuGrid;
+  late List<List<int>> _solutionGrid;
+  List<List<int>> currentGrid = List.generate(9, (i) => List.filled(9, 0)); // Grid in memory
   int? selectedBlock;
   int? selectedCell;
 
@@ -29,23 +31,27 @@ class _GameState extends State<Game> {
     puzzle = Puzzle(puzzleOptions);
     await puzzle.generate();
 
-    return extractGrid();
+    _solutionGrid = extractSolution();
+    currentGrid = extractGrid(); // Store initial grid state
+
+    return currentGrid;
   }
 
-  /// Extrait la grille depuis le Puzzle
+  /// Extrait la grille actuelle (avec valeurs affichées)
   List<List<int>> extractGrid() {
-    List<List<int>> grid = List.generate(9, (i) => List.generate(9, (j) => 0));
-
-    for (int i = 0; i < 9; i++) {
-      for (int j = 0; j < 9; j++) {
-        grid[i][j] = puzzle.board()?.matrix()?[i][j].getValue() ?? 0;
-      }
-    }
-
-    return grid;
+    return List.generate(9, (i) => List.generate(9, (j) {
+      return puzzle.board()?.matrix()?[i][j].getValue() ?? 0;
+    }));
   }
 
-  /// Met à jour l'état lorsqu'une cellule est sélectionnée
+  /// Extrait la solution complète du Sudoku
+  List<List<int>> extractSolution() {
+    return List.generate(9, (i) => List.generate(9, (j) {
+      return puzzle.solvedBoard()?.matrix()?[i][j].getValue() ?? 0;
+    }));
+  }
+
+  /// Handles cell selection
   void onCellTap(int blockIndex, int cellIndex) {
     setState(() {
       selectedBlock = blockIndex;
@@ -53,7 +59,7 @@ class _GameState extends State<Game> {
     });
   }
 
-  /// Insère une valeur dans la cellule sélectionnée
+  /// Inserts a number into the selected cell (without reloading the whole grid)
   void insertValue(int value) {
     if (selectedBlock == null || selectedCell == null) return;
 
@@ -63,6 +69,9 @@ class _GameState extends State<Game> {
     setState(() {
       Position position = Position(row: row, column: col);
       puzzle.board()!.cellAt(position).setValue(value);
+
+      // Update only the selected cell
+      currentGrid[row][col] = value;
     });
   }
 
@@ -78,65 +87,78 @@ class _GameState extends State<Game> {
         title: Text(widget.title),
       ),
       body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          FutureBuilder<List<List<int>>>(
-            future: _sudokuGrid,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const CircularProgressIndicator();
-              } else if (snapshot.hasError) {
-                return const Text("Erreur lors de la génération du Sudoku");
-              }
+          /// Sudoku Grid
+          Expanded(
+            flex: 6,
+            child: Center(
+              child: FutureBuilder<List<List<int>>>(
+                future: _sudokuGrid,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return const Text("Erreur lors de la génération du Sudoku");
+                  }
 
-              final grid = extractGrid();
+                  return SizedBox(
+                    height: boxSize * 3,
+                    width: boxSize * 3,
+                    child: GridView.count(
+                      crossAxisCount: 3,
+                      children: List.generate(9, (blockIndex) {
+                        List<int> values = [];
+                        List<int> expectedValues = [];
+                        int startRow = (blockIndex ~/ 3) * 3;
+                        int startCol = (blockIndex % 3) * 3;
 
-              return SizedBox(
-                height: boxSize * 3,
-                width: boxSize * 3,
-                child: GridView.count(
-                  crossAxisCount: 3,
-                  children: List.generate(9, (blockIndex) {
-                    List<int> values = [];
-                    int startRow = (blockIndex ~/ 3) * 3;
-                    int startCol = (blockIndex % 3) * 3;
+                        for (int i = 0; i < 3; i++) {
+                          for (int j = 0; j < 3; j++) {
+                            values.add(currentGrid[startRow + i][startCol + j]); // Use currentGrid
+                            expectedValues.add(_solutionGrid[startRow + i][startCol + j]);
+                          }
+                        }
 
-                    for (int i = 0; i < 3; i++) {
-                      for (int j = 0; j < 3; j++) {
-                        values.add(grid[startRow + i][startCol + j]);
-                      }
-                    }
-
-                    return Container(
-                      width: boxSize,
-                      height: boxSize,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.blueAccent, width: 1),
-                      ),
-                      child: InnerGrid(
-                        boxSize: boxSize,
-                        values: values,
-                        blockIndex: blockIndex,
-                        selectedBlock: selectedBlock,
-                        selectedCell: selectedCell,
-                        onCellTap: onCellTap,
-                      ),
-                    );
-                  }),
-                ),
-              );
-            },
+                        return Container(
+                          width: boxSize,
+                          height: boxSize,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.blueAccent, width: 1),
+                          ),
+                          child: InnerGrid(
+                            boxSize: boxSize,
+                            values: values,
+                            expectedValues: expectedValues,
+                            blockIndex: blockIndex,
+                            selectedBlock: selectedBlock,
+                            selectedCell: selectedCell,
+                            onCellTap: onCellTap,
+                          ),
+                        );
+                      }),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
+
           const SizedBox(height: 20),
-          buildNumberPad(),
+
+          /// Number Pad (Fixed Position)
+          Expanded(
+            flex: 2,
+            child: buildNumberPad(),
+          ),
         ],
       ),
     );
   }
 
-  /// Construit le pavé numérique
+  /// Builds the number selection pad
   Widget buildNumberPad() {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -155,13 +177,17 @@ class _GameState extends State<Game> {
     );
   }
 
-  /// Construit un bouton pour un chiffre donné
+  /// Builds a button for selecting a number
   Widget buildNumberButton(int number) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: ElevatedButton(
         onPressed: () => insertValue(number),
-        child: Text(number.toString(), style: const TextStyle(fontSize: 20)),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.all(16),
+          textStyle: const TextStyle(fontSize: 20),
+        ),
+        child: Text(number.toString()),
       ),
     );
   }

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 class InnerGrid extends StatelessWidget {
-  final List<int> values;
+  final List<int> values; // Valeurs actuelles
+  final List<int> expectedValues; // Valeurs attendues (solution)
   final double boxSize;
   final int blockIndex;
-  final Function(int, int) onCellTap; // Callback pour informer Game
+  final Function(int, int) onCellTap;
   final int? selectedBlock;
   final int? selectedCell;
 
@@ -12,6 +13,7 @@ class InnerGrid extends StatelessWidget {
     Key? key,
     required this.boxSize,
     required this.values,
+    required this.expectedValues,
     required this.blockIndex,
     required this.onCellTap,
     this.selectedBlock,
@@ -26,6 +28,8 @@ class InnerGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       children: List.generate(9, (cellIndex) {
         bool isSelected = (blockIndex == selectedBlock && cellIndex == selectedCell);
+        bool isEmpty = values[cellIndex] == 0; // Case vide ?
+        int expectedValue = expectedValues[cellIndex]; // Valeur attendue
 
         return InkWell(
           onTap: () => onCellTap(blockIndex, cellIndex),
@@ -38,8 +42,12 @@ class InnerGrid extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                values[cellIndex] != 0 ? values[cellIndex].toString() : '',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                isEmpty ? expectedValue.toString() : values[cellIndex].toString(),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isEmpty ? Colors.black12 : Colors.black,
+                ),
               ),
             ),
           ),
