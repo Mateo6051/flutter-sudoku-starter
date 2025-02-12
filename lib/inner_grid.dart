@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 class InnerGrid extends StatelessWidget {
-  final List<int> values; // Valeurs actuelles
-  final List<int> expectedValues; // Valeurs attendues (solution)
+  final List<int> values; // Current puzzle values
+  final List<int> expectedValues; // Solution values
   final double boxSize;
   final int blockIndex;
   final Function(int, int) onCellTap;
   final int? selectedBlock;
   final int? selectedCell;
+  final bool showSolution; // NEW: Toggle for showing the solution
 
   const InnerGrid({
     Key? key,
@@ -18,6 +19,7 @@ class InnerGrid extends StatelessWidget {
     required this.onCellTap,
     this.selectedBlock,
     this.selectedCell,
+    required this.showSolution, // Add this parameter
   }) : super(key: key);
 
   @override
@@ -28,8 +30,8 @@ class InnerGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       children: List.generate(9, (cellIndex) {
         bool isSelected = (blockIndex == selectedBlock && cellIndex == selectedCell);
-        bool isEmpty = values[cellIndex] == 0; // Case vide ?
-        int expectedValue = expectedValues[cellIndex]; // Valeur attendue
+        bool isEmpty = values[cellIndex] == 0; // Check if cell is empty
+        int expectedValue = expectedValues[cellIndex]; // Get expected solution value
 
         return InkWell(
           onTap: () => onCellTap(blockIndex, cellIndex),
@@ -42,11 +44,15 @@ class InnerGrid extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                isEmpty ? expectedValue.toString() : values[cellIndex].toString(),
+                showSolution || !isEmpty
+                    ? expectedValue.toString() // Show solution if enabled
+                    : values[cellIndex] != 0
+                    ? values[cellIndex].toString() // Show user-entered value
+                    : '',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: isEmpty ? Colors.black12 : Colors.black,
+                  color: (showSolution && isEmpty) ? Colors.black12 : Colors.black,
                 ),
               ),
             ),
