@@ -57,6 +57,7 @@ class _GameState extends State<Game> {
     });
   }
 
+  /// Insère une valeur et vérifie la victoire
   void insertValue(int value) {
     if (selectedBlock == null || selectedCell == null) return;
 
@@ -70,9 +71,35 @@ class _GameState extends State<Game> {
         puzzle.board()!.cellAt(position).setValue(value);
         currentGrid[row][col] = value;
       });
+
+      _checkVictory(); // Vérifie si le puzzle est complété
     } else {
       showErrorSnackbar();
     }
+  }
+
+  /// Vérifie si toutes les cases sont correctes et passe à l'écran de victoire
+  void _checkVictory() {
+    for (int i = 0; i < 9; i++) {
+      for (int j = 0; j < 9; j++) {
+        if (currentGrid[i][j] != _solutionGrid[i][j]) {
+          return; // Si une case est incorrecte, on ne fait rien
+        }
+      }
+    }
+    // Victoire ! On passe à l'écran de fin
+    Navigator.pushNamed(context, '/end');
+  }
+
+  /// Remplit la grille avec la solution et détecte la victoire
+  void solvePuzzle() {
+    setState(() {
+      currentGrid = List.from(_solutionGrid);
+    });
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _checkVictory();
+    });
   }
 
   void showErrorSnackbar() {
@@ -90,7 +117,6 @@ class _GameState extends State<Game> {
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
-  /// Toggle pour afficher/masquer la solution
   void toggleSolution() {
     setState(() {
       _showSolution = !_showSolution;
@@ -153,7 +179,7 @@ class _GameState extends State<Game> {
                           selectedBlock: selectedBlock,
                           selectedCell: selectedCell,
                           onCellTap: onCellTap,
-                          showSolution: _showSolution, // Passe l'état au widget
+                          showSolution: _showSolution,
                         ),
                       );
                     }),
@@ -165,7 +191,7 @@ class _GameState extends State<Game> {
 
           const SizedBox(height: 10),
 
-          /// Number Pad (closer to the grid)
+          /// Number Pad
           buildNumberPad(),
 
           /// Button to Show/Hide Solution
@@ -173,16 +199,17 @@ class _GameState extends State<Game> {
             padding: const EdgeInsets.only(top: 10),
             child: ElevatedButton(
               onPressed: toggleSolution,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: Text(
-                _showSolution ? "Hide Solution" : "Show Solution",
-                style: const TextStyle(fontSize: 18),
-              ),
+              child: Text(_showSolution ? "Hide Solution" : "Show Solution"),
+            ),
+          ),
+
+          /// Button to Solve the Puzzle
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: ElevatedButton(
+              onPressed: solvePuzzle,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text("Solve"),
             ),
           ),
         ],
@@ -191,42 +218,28 @@ class _GameState extends State<Game> {
   }
 
   Widget buildNumberPad() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (index) {
-              return buildNumberButton(index + 1);
-            }),
-          ),
-          const SizedBox(height: 5),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(4, (index) {
-              return buildNumberButton(index + 6);
-            }),
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(5, (index) {
+            return buildNumberButton(index + 1);
+          }),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(4, (index) {
+            return buildNumberButton(index + 6);
+          }),
+        ),
+      ],
     );
   }
 
   Widget buildNumberButton(int number) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: ElevatedButton(
-        onPressed: () => insertValue(number),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-        child: Text(number.toString(), style: const TextStyle(fontSize: 20)),
-      ),
+    return ElevatedButton(
+      onPressed: () => insertValue(number),
+      child: Text(number.toString()),
     );
   }
 }
